@@ -36,8 +36,10 @@ SOFTWARE.
 #ifdef WIN32
 #define stat _stat
 #define stricmp _stricmp
-#include <cctype>
 #include <dirent.h>
+#include <experimental/filesystem>
+namespace fs = std::experimental::filesystem;
+#include <windows.h>
 #define PATH_SEP '\\'
 #ifndef PATH_MAX
 #define PATH_MAX 260
@@ -1495,9 +1497,9 @@ namespace igfd
 
 	void ImGuiFileDialog::ScanDir(const std::string& vPath)
 	{
-		struct dirent **files = nullptr;
-		int             i = 0;
-		int             n = 0;
+		//struct dirent **files = nullptr;
+		//int             i = 0;
+		//int             n = 0;
 		std::string		path = vPath;
 
 		if (m_CurrentPath_Decomposition.empty())
@@ -1513,7 +1515,30 @@ namespace igfd
 				path += PATH_SEP;
 			}
 #endif
-			n = scandir(path.c_str(), &files, nullptr, alphaSort);
+		path = (path == "") ? "./" : path;
+		for (const auto &entry : fs::directory_iterator(path)) {
+			FileInfoStruct infos;
+			infos.fileName = entry.path().filename().string();
+
+			switch (entry.status().type()) {
+			    case fs::file_type::regular: infos.type = 'f'; break;
+			    case fs::file_type::directory: infos.type = 'd'; break;
+			    case fs::file_type::symlink: infos.type = 'l'; break;
+			}
+
+			if (infos.type == 'f')
+			{
+			    size_t lpt = infos.fileName.find_last_of('.');
+			    if (lpt != std::string::npos)
+			    {
+				infos.ext = infos.fileName.substr(lpt);
+			    }
+			}
+
+			m_FileList.push_back(infos);
+		}
+			
+			/*n = scandir(path.c_str(), &files, nullptr, alphaSort);
 			if (n > 0)
 			{
 				m_FileList.clear();
@@ -1557,7 +1582,7 @@ namespace igfd
 					free(files[i]);
 				}
 				free(files);
-			}
+			}*/
 
             SortFields(m_SortingField);
 		}
